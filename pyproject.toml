@@ -1,0 +1,158 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "torch>=2.0.0", "torchvision>=0.15.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "groundingdino"
+version = "0.1.0"
+description = "Open-set object detector based on Grounding DINO"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "International Digital Economy Academy, Shilong Liu"},
+]
+maintainers = [
+    {name = "IDEA Research"},
+]
+keywords = ["computer-vision", "object-detection", "grounding", "dino", "transformer"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "torch==2.5.1",
+    "torchvision>=0.20.1",
+    "transformers>=4.20.0",
+    "addict>=2.4.0",
+    "yapf>=0.40.0",
+    "timm>=0.9.0",
+    "numpy>=1.21.0",
+    "opencv-python>=4.5.0",
+    "supervision>=0.22.0",
+    "pycocotools>=2.0.0",
+    "Pillow>=8.0.0",
+    "matplotlib>=3.5.0",
+    "tqdm>=4.60.0",
+    "pyyaml>=6.0",
+    "scipy>=1.7.0",
+    "scikit-image>=0.19.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=22.0",
+    "isort>=5.0",
+    "flake8>=4.0",
+    "mypy>=0.950",
+    "pre-commit>=2.0",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=1.0",
+    "myst-parser>=0.15",
+]
+test = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "pytest-mock>=3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/IDEA-Research/GroundingDINO"
+Documentation = "https://github.com/IDEA-Research/GroundingDINO"
+Repository = "https://github.com/IDEA-Research/GroundingDINO"
+"Bug Tracker" = "https://github.com/IDEA-Research/GroundingDINO/issues"
+"Source Code" = "https://github.com/IDEA-Research/GroundingDINO"
+
+[project.scripts]
+groundingdino-demo = "groundingdino.demo.inference:main"
+
+# Note: C++ extensions are handled by setup.py
+# This pyproject.toml provides metadata and dependencies
+# while setup.py handles the complex C++/CUDA compilation
+
+# Development tools configuration
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["groundingdino"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["groundingdino"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+] 

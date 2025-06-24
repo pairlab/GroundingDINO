@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import cv2
 import numpy as np
@@ -19,27 +19,38 @@ from groundingdino.util.utils import get_phrases_from_posmap
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-def preprocess_caption(caption: str) -> str:
+def preprocess_caption(caption: Union[str, List[str]]) -> Union[str, List[str]]:
+    if type(caption) == list:
+        return [preprocess_caption(c) for c in caption]
     result = caption.lower().strip()
     if result.endswith("."):
         return result
     return result + "."
 
 
-def load_model(model_config_path: str, model_checkpoint_path: str, device: str = "cuda"):
+def load_model(model_config_path: str, model_checkpoint_path: str, device: str = "cuda", use_checkpoint: bool = True, compile_model: bool = True):
     args = SLConfig.fromfile(model_config_path)
     args.device = device
+    args.use_checkpoint = use_checkpoint  # Enable checkpointing for inference
     model = build_model(args)
     checkpoint = torch.load(model_checkpoint_path, map_location="cpu")
     model.load_state_dict(clean_state_dict(checkpoint["model"]), strict=False)
     model.eval()
+    
+    # Apply inference optimizations
+    if compile_model and hasattr(torch, 'compile'):
+        try:
+            model = torch.compile(model, mode="reduce-overhead")
+        except Exception as e:
+            print(f"Warning: torch.compile failed: {e}")
+    
     return model
 
 
 def load_image(image_path: str) -> Tuple[np.array, torch.Tensor]:
     transform = T.Compose(
         [
-            T.RandomResize([800], max_size=1333),
+            T.RandomResize([224], max_size=1333),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
@@ -57,15 +68,29 @@ def predict(
         box_threshold: float,
         text_threshold: float,
         device: str = "cuda",
-        remove_combined: bool = False
+        remove_combined: bool = False,
+        use_amp: bool = True
 ) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
     caption = preprocess_caption(caption=caption)
 
     model = model.to(device)
     image = image.to(device)
 
-    with torch.no_grad():
-        outputs = model(image[None], captions=[caption])
+    if len(image.shape) == 3:
+        image = image[None]
+        captions = [caption]
+    
+    else:
+        captions = caption
+
+    # Use mixed precision for inference
+    if use_amp:
+        with torch.amp.autocast('cuda'):
+            with torch.no_grad():
+                outputs = model(image, captions=captions)
+    else:
+        with torch.no_grad():
+            outputs = model(image, captions=captions)
 
     prediction_logits = outputs["pred_logits"].cpu().sigmoid()[0]  # prediction_logits.shape = (nq, 256)
     prediction_boxes = outputs["pred_boxes"].cpu()[0]  # prediction_boxes.shape = (nq, 4)
@@ -75,7 +100,7 @@ def predict(
     boxes = prediction_boxes[mask]  # boxes.shape = (n, 4)
 
     tokenizer = model.tokenizer
-    tokenized = tokenizer(caption)
+    tokenized = tokenizer(captions[0])
     
     if remove_combined:
         sep_idx = [i for i in range(len(tokenized['input_ids'])) if tokenized['input_ids'][i] in [101, 102, 1012]]

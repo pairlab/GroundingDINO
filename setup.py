@@ -23,9 +23,17 @@
 import glob
 import os
 import subprocess
-
-import subprocess
 import sys
+import shutil
+
+def find_compiler():
+    """Find the appropriate C++ compiler"""
+    # Try to find gcc/g++ or clang/clang++
+    compilers = ['gcc', 'clang']
+    for compiler in compilers:
+        if shutil.which(compiler):
+            return compiler
+    return None
 
 def install_torch():
     try:
@@ -45,25 +53,17 @@ version = "0.1.0"
 package_name = "groundingdino"
 cwd = os.path.dirname(os.path.abspath(__file__))
 
-
 sha = "Unknown"
 try:
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd).decode("ascii").strip()
 except Exception:
     pass
 
-
 def write_version_file():
     version_path = os.path.join(cwd, "groundingdino", "version.py")
     with open(version_path, "w") as f:
         f.write(f"__version__ = '{version}'\n")
         # f.write(f"git_version = {repr(sha)}\n")
-
-
-requirements = ["torch", "torchvision"]
-
-torch_ver = [int(x) for x in torch.__version__.split(".")[:2]]
-
 
 def get_extensions():
     this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -78,7 +78,6 @@ def get_extensions():
     sources = [main_source] + sources
 
     extension = CppExtension
-
     extra_compile_args = {"cxx": []}
     define_macros = []
 
@@ -99,8 +98,8 @@ def get_extensions():
         extra_compile_args["nvcc"] = []
         return None
 
-    sources = [os.path.join(extensions_dir, s) for s in sources]
-    include_dirs = [extensions_dir]
+    sources = [os.path.relpath(s, start=this_dir) for s in sources]
+    include_dirs = [os.path.relpath(extensions_dir, start=this_dir)]
 
     ext_modules = [
         extension(
@@ -113,7 +112,6 @@ def get_extensions():
     ]
 
     return ext_modules
-
 
 def parse_requirements(fname="requirements.txt", with_version=True):
     """Parse the package dependencies listed in a requirements file but strips
@@ -130,7 +128,6 @@ def parse_requirements(fname="requirements.txt", with_version=True):
         python -c "import setup; print(setup.parse_requirements())"
     """
     import re
-    import sys
     from os.path import exists
 
     require_fpath = fname
@@ -192,9 +189,15 @@ def parse_requirements(fname="requirements.txt", with_version=True):
     packages = list(gen_packages_items())
     return packages
 
-
 if __name__ == "__main__":
     print(f"Building wheel {package_name}-{version}")
+
+    # Set compiler environment variables if not already set
+    if not os.environ.get("CC"):
+        compiler = find_compiler()
+        if compiler:
+            os.environ["CC"] = shutil.which(compiler)
+            os.environ["CXX"] = shutil.which(compiler.replace("cc", "++").replace("gcc", "g++").replace("clang", "clang++"))
 
     with open("LICENSE", "r", encoding="utf-8") as f:
         license = f.read()
